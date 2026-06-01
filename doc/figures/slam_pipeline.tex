@@ -1,0 +1,51 @@
+\documentclass[crop,tikz,convert=pdf2svg]{standalone}
+\usetikzlibrary{decorations.pathreplacing}
+
+\makeatletter
+
+\begin{document}
+
+    \begin{tikzpicture}
+
+    \newcommand*\circled[1]{\tikz[baseline=(char.base)]{\node[shape=circle,draw,thick,fill=white,inner sep=2pt, scale=0.8] (char) {#1};}}
+
+    \node[inner sep=5pt, draw, rounded corners, draw = black, fill=gray!20, thick, align=center, text width=2.4cm] (tracking) at (0,0) {Tracking};
+    \draw [draw, -stealth, thick] ([xshift=-55pt,yshift=0pt]tracking.west) to ([xshift=0pt,yshift=0pt]tracking.west) \node[xshift=-70pt,yshift=3pt] {\tiny Input: RGB-D};
+
+
+    \node[inner sep=5pt, draw, rounded corners, draw = black, fill=gray!20, thick, align=center, text width=2.4cm] (mapping) at ([xshift=0pt,yshift=-30pt]tracking.south) {Local Mapping};
+    \node[inner sep=5pt, draw, rounded corners, draw = black, fill=gray!20, thick, align=center, text width=2.4cm] (loop_closure) at ([xshift=0pt,yshift=-30pt]mapping.south) {Loop Closure};
+    \node[inner sep=5pt, draw, rounded corners, draw = black, fill=gray!20, thick, align=center, text width=2.4cm] (visualization) at ([xshift=0pt,yshift=-30pt]loop_closure.south) {Visualization};
+    \draw [decorate,decoration={brace,amplitude=2pt}] ([xshift=0pt,yshift=55pt]mapping.west) -- ([xshift=0pt,yshift=55pt]mapping.east) node[midway,yshift=5pt]{\tiny Parallel threads};
+
+    \fill [rounded corners, draw, fill=gray!20, thick]  ([xshift=80pt,yshift=10pt]tracking.east) rectangle ([xshift=160pt,yshift=-10pt]visualization.east) node[] {};
+
+    % \node[inner sep=20pt, draw, rounded corners, draw = black, fill=gray!20, thick, align=center] (map) at (3,-1) {Map};
+    \node[] (map) at ([xshift=120pt,yshift=30pt]mapping.east) {\textbf{Map}};
+    \node[inner sep=4pt, draw, rounded corners, draw = black, thick, fill=white, align=center, text width=1.6cm] (keyframes) at ([xshift=0pt,yshift=-25pt]map.south) {\footnotesize Keyframes};
+    \node[inner sep=4pt, draw, rounded corners, draw = black, thick, fill=white, align=center, text width=1.6cm] (points) at ([xshift=0pt,yshift=-50pt]map.south) {\footnotesize Map Points};
+    \draw [decorate,decoration={brace,amplitude=2pt}] ([xshift=-25pt,yshift=25pt]map.west) -- ([xshift=25pt,yshift=25pt]map.east) node[midway,yshift=5pt]{\tiny Shared memory};
+
+
+    % Tracking - Map
+    \draw[draw, -stealth, thick] ([xshift=0pt,yshift=0pt]tracking.east) to ([xshift=80pt,yshift=0pt]tracking.east) node[xshift=-40pt, yshift=3pt] {\tiny New keyframe data} ;
+
+    % Local Mapping - Map
+    \draw[draw, stealth-, thick] ([xshift=0pt,yshift=0pt]mapping.north) to ([xshift=0pt,yshift=8pt]mapping.north) to ([xshift=120pt,yshift=8pt]mapping.north) node[xshift=-60pt, yshift=3pt] {\tiny New keyframe data} ;
+    \draw [dashed, -stealth, thick] ([xshift=2pt,yshift=0pt]mapping.east) to ([xshift=78pt,yshift=0pt]mapping.east) node[xshift=-40pt] {\circled{1}};
+
+    % Loop Closure - Map
+    \draw[draw, stealth-, thick] ([xshift=0pt,yshift=0pt]loop_closure.north) to ([xshift=0pt,yshift=8pt]loop_closure.north) to ([xshift=120pt,yshift=8pt]loop_closure.north) node[xshift=-60pt, yshift=3pt] {\tiny New keyframe (after Local Mapping)} ;
+    \draw [dashed, -stealth, thick] ([xshift=2pt,yshift=0pt]loop_closure.east) to ([xshift=78pt,yshift=0pt]loop_closure.east)  node[xshift=-40pt] {\circled{2}};;
+
+    % Visualization
+    \draw[draw, stealth-, thick] ([xshift=0pt,yshift=0pt]visualization.north) to ([xshift=0pt,yshift=8pt]visualization.north) to ([xshift=120pt,yshift=8pt]visualization.north) node[xshift=-60pt, yshift=3pt] {\tiny Visualization data} ;
+
+
+    \node[anchor=west] (lm_content) at ([xshift=-100pt,yshift=-15pt]visualization.south) { {\tiny \circled{1} Create/insert new keyframes; Map points culling; Local bundle adjustment;  \emph{etc}.}};
+    \node[anchor=west] (lc_content) at ([xshift=-100pt,yshift=-25pt]visualization.south) { {\tiny \circled{2} Find/validate loops; Keyframe fusion; Full bundle adjustment; Pose correction propagation; \emph{etc}.}};
+
+
+    \end{tikzpicture}
+
+\end{document}

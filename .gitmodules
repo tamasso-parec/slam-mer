@@ -1,0 +1,19 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+[submodule "thirdparty/gtsam"]
+	path = thirdparty/gtsam
+	url = https://github.com/borglab/gtsam.git
+[submodule "thirdparty/PoseLib"]
+	path = thirdparty/PoseLib
+	url = https://github.com/PoseLib/PoseLib
+[submodule "thirdparty/faiss"]
+	path = thirdparty/faiss
+	url = https://github.com/facebookresearch/faiss.git
+[submodule "thirdparty/visual_place_localization"]
+	path = thirdparty/visual_place_localization
+	url = https://github.com/slam-mer/visual_place_localization.git
+[submodule "thirdparty/depth_inference"]
+	path = thirdparty/depth_inference
+	url = https://github.com/slam-mer/depth_inference.git

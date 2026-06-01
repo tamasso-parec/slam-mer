@@ -1,0 +1,31 @@
+version = 1
+
+[[annotations]]
+path = ".vscode/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Mitsubishi Electric Research Laboratories (MERL)"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
+path = "doc/figures/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Mitsubishi Electric Research Laboratories (MERL)"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
+path = "thirdparty/gtsam_similarity3.patch"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2010 Georgia Tech Research Corporation and 2026 Mitsubishi Electric Research Laboratories (MERL)"
+SPDX-License-Identifier = "BSD-3-Clause AND AGPL-3.0-or-later"
+
+[[annotations]]
+path = "utils/aliked/models/*.pt"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2023 ETH Zurich and Janusch Patas and 2026 Mitsubishi Electric Research Laboratories (MERL)"
+SPDX-License-Identifier = "Apache-2.0 AND AGPL-3.0-or-later"
+
+[[annotations]]
+path = "scripts/*.sh"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Mitsubishi Electric Research Laboratories (MERL)"
+SPDX-License-Identifier = "AGPL-3.0-or-later"

@@ -1,0 +1,127 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# --------------------------------------------------------------------------
+# Build optional SLAM-MER modules
+# --------------------------------------------------------------------------
+
+[build_depth_inference]
+description = "Configure, build, and install the depth inference module"
+dir = "thirdparty/depth_inference"
+run = [
+  "mise trust",
+  "mise install",
+  "uv sync",
+  "mise run configure_onnx",
+  "mise run install_assets",
+  """
+  cmake -B build -S . \
+        -DCMAKE_BUILD_TYPE=\"Debug\" \
+        -DBUILD_SHARED=ON \
+        -DBUILD_TESTS=OFF \
+        -DCMAKE_INSTALL_PREFIX=${PWD}/build/install \
+        -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
+        -GNinja
+  """,
+  "ninja -C build",
+  "ninja -C build install",
+]
+
+[build_visual_place_localization]
+description = "Configure, build, and install the visual place localization module"
+dir = "thirdparty/visual_place_localization"
+run = [
+  "mise trust",
+  "mise install",
+  "uv sync",
+  "mise run configure_onnx",
+  "mise run install_assets",
+  """
+  cmake -B build -S . \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DUSE_GPU_DATABASE=ON \
+    -DBUILD_TESTS=OFF \
+    -DBUILD_SHARED=ON \
+    -DFaiss_DIR=${PWD}/../faiss/build/install/share/faiss \
+    -DCMAKE_INSTALL_PREFIX=${PWD}/build/install \
+    -GNinja
+  """,
+  "ninja -C build",
+  "ninja -C build install",
+]
+
+[build_modules]
+description = "Build all modules"
+run = [
+  "mise run sync_optional_module_submodule_urls",
+  "mise run build_depth_inference",
+  "mise run build_visual_place_localization",
+]
+
+# --------------------------------------------------------------------------
+# Build SLAM-MER main target
+# --------------------------------------------------------------------------
+
+[ensure_libtorch]
+description = "Download libtorch (CUDA 12.8) if missing"
+hide = true
+run = [
+  """
+  if [ -d "thirdparty/libtorch" ]; then
+    echo "libtorch already present: thirdparty/libtorch"
+    exit 0
+  fi
+
+  archive="libtorch-shared-with-deps-2.9.0+cu128.zip"
+  url="https://download.pytorch.org/libtorch/cu128/libtorch-shared-with-deps-2.9.0%2Bcu128.zip"
+
+  cd thirdparty || exit 1
+  wget -O "${archive}" "${url}"
+  unzip "${archive}"
+  rm -f "${archive}"
+  """
+]
+
+[debug]
+description = "Build and install the Debug SLAM-MER target"
+run = [
+  "mise run configure_debug",
+  "ninja -C build install",
+]
+
+[build]
+description = "Build and install the Release SLAM-MER target"
+run = [
+  "mise run configure_main",
+  "ninja -C build install",
+]
+
+[build_without_depth_vpl]
+description = "Build and install SLAM-MER without depth inference or visual place localization"
+run = [
+  "mise run configure_main_without_depth_vpl",
+  "ninja -C build install",
+]
+
+# --------------------------------------------------------------------------
+# Build grouped project workflows
+# --------------------------------------------------------------------------
+
+[build_main_modules]
+description = "Build main SLAM-MER and optional modules"
+run = [
+  "mise run build_modules",
+  "mise run build",
+]
+
+[build_project]
+description = "Build main code and optional modules"
+run = ["mise run build_main_modules"]
+
+[build_project_without_depth_vpl]
+description = "Build third-party dependencies and SLAM-MER without optional modules"
+run = [
+  "mise run build_thirdparties",
+  "mise run build_without_depth_vpl",
+]

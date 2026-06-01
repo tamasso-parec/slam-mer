@@ -1,0 +1,32 @@
+diff --git a/gtsam/geometry/Similarity3.cpp b/gtsam/geometry/Similarity3.cpp
+index 0f1011f51..6bfdc270f 100644
+--- a/gtsam/geometry/Similarity3.cpp
++++ b/gtsam/geometry/Similarity3.cpp
+@@ -125 +125 @@ Similarity3 Similarity3::operator*(const Similarity3& S) const {
+-  return Similarity3(R_ * S.R_, ((1.0 / S.s_) * t_) + R_ * S.t_, s_ * S.s_);
++  return Similarity3(R_ * S.R_, s_ * (R_ * S.t_) + t_, s_ * S.s_);
+@@ -130,2 +130,2 @@ Similarity3 Similarity3::inverse() const {
+-  const Point3 sRt = Rt * (-s_ * t_);
+-  return Similarity3(Rt, sRt, 1.0 / s_);
++  const Point3 inv_t = Rt * (-t_ / s_);
++  return Similarity3(Rt, inv_t, 1.0 / s_);
+@@ -136 +136 @@ Point3 Similarity3::transformFrom(const Point3& p, //
+-  const Point3 q = R_ * p + t_;
++  // New form: Q = s_ * R_ * p + t_
+@@ -138,4 +138,4 @@ Point3 Similarity3::transformFrom(const Point3& p, //
+-    // For this derivative, see LieGroups.pdf
+-    const Matrix3 sR = s_ * R_.matrix();
+-    const Matrix3 DR = sR * skewSymmetric(-p.x(), -p.y(), -p.z());
+-    *H1 << DR, sR, sR * p;
++    // Derivative for Q = s*R*p + t
++    const Matrix3 R = R_.matrix();
++    const Matrix3 DR = s_ * R * skewSymmetric(-p.x(), -p.y(), -p.z());
++    *H1 << DR, s_ * R, R * p;
+@@ -144,2 +144,2 @@ Point3 Similarity3::transformFrom(const Point3& p, //
+-    *H2 = s_ * R_.matrix(); // just 3*3 sub-block of matrix()
+-  return s_ * q;
++    *H2 = s_ * R_.matrix();
++  return s_ * (R_ * p) + t_;
+@@ -150 +150 @@ Pose3 Similarity3::transformFrom(const Pose3& T) const {
+-  Point3 t = Point3(s_ * (R_ * T.translation() + t_));
++  Point3 t = Point3(s_ * (R_ * T.translation()) + t_);

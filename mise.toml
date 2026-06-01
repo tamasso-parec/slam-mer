@@ -1,0 +1,40 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+[tools]
+clang-format = "21.1.8"
+cmake = "3.26"
+python = "3.12.12"
+uv = "latest"
+
+[env]
+_.python.venv = ".venv"
+CC = "/usr/bin/gcc-14"
+CXX = "/usr/bin/g++-14"
+CUDAHOSTCXX = "/usr/bin/g++-14"
+CMAKE_CUDA_HOST_COMPILER = "/usr/bin/g++-14"
+
+# TODO: adjust to your enviroments
+_.path = ["/usr/local/cuda-12.8/bin"]
+LD_LIBRARY_PATH = "/usr/local/cuda-12.8/lib64:{{env.LD_LIBRARY_PATH|default(value='')}}"
+CUDA_HOME = "/usr/local/cuda-12.8"
+CUDA_VERSION="12.8"
+CUDA_ARCH = 86
+TORCH_CUDA_ARCH_LIST = "8.6"
+ASAN_OPTIONS = "protect_shadow_gap=0"
+RERUN_VERSION = "0.25.1"
+
+# to find cublas_v2.h
+CPLUS_INCLUDE_PATH="/usr/local/cuda-12.8/targets/x86_64-linux/include"
+LIBRARY_PATH="/usr/local/cuda-12.8/targets/x86_64-linux/lib"
+
+[task_config]
+includes = [
+  ".mise/tasks",
+  ".mise/docs.toml",
+  ".mise/configuration.toml",
+  ".mise/build.toml",
+  ".mise/clean.toml",
+  ".mise/thirdparties.toml",
+]

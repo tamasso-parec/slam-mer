@@ -1,0 +1,47 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# --------------------------------------------------------------------------
+# Clean optional SLAM-MER modules
+# --------------------------------------------------------------------------
+
+[clean_depth_inference]
+description = "Remove build directory for depth inference"
+dir = "thirdparty/depth_inference"
+run = ["rm -rf build"]
+
+[clean_visual_place_localization]
+description = "Remove build directory for visual place localization"
+dir = "thirdparty/visual_place_localization"
+run = ["rm -rf build"]
+
+[clean_modules]
+description = "Clean all modules"
+run = [
+  "mise run clean_depth_inference",
+  "mise run clean_visual_place_localization",
+]
+
+# --------------------------------------------------------------------------
+# Clean SLAM-MER main target
+# --------------------------------------------------------------------------
+
+[clean]
+description = "Remove the main SLAM-MER build directory"
+run = ["rm -rf build"]
+
+# --------------------------------------------------------------------------
+# Clean grouped project workflows
+# --------------------------------------------------------------------------
+
+[clean_main_modules]
+description = "Clean build artifacts for main SLAM-MER and optional modules"
+run = [
+  "mise run clean_modules",
+  "mise run clean",
+]
+
+[clean_project]
+description = "Clean main code and optional module build artifacts"
+run = ["mise run clean_main_modules"]

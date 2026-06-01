@@ -1,0 +1,63 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Compile check
+
+on:   # yamllint disable-line rule:truthy
+  pull_request:
+  push:
+    branches:
+      - main
+    tags-ignore:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  compile-check:
+    name: Build project without depth and VPL modules
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    env:
+      CUDACXX: /usr/local/cuda-12.8/bin/nvcc
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+      SLAM_MER_WITH_ALIKED: 'OFF'
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@v3
+        with:
+          install: true
+
+      - name: Initialize required public submodules
+        run: |
+          git submodule sync -- thirdparty/gtsam thirdparty/PoseLib thirdparty/faiss
+          git submodule update --init --recursive \
+            thirdparty/gtsam \
+            thirdparty/PoseLib \
+            thirdparty/faiss
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo apt-get clean
+          docker system prune -af || true
+          df -h
+
+      - name: Install system packages
+        run: mise run install_dependencies
+
+      - name: Build with mise
+        run: |
+          mise run build_thirdparties_ci
+          mise run build_without_depth_vpl

@@ -1,0 +1,211 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# --------------------------------------------------------------------------
+# Build and Clean GTSAM from source
+# --------------------------------------------------------------------------
+
+[build_gtsam]
+description = "Install GTSAM from source"
+hide = true
+run = [
+  """
+  if [ ! -d "thirdparty/gtsam/build/install" ]; then
+    if git -C thirdparty/gtsam apply --unidiff-zero --reverse --check ../gtsam_similarity3.patch >/dev/null 2>&1; then
+      echo "thirdparty/gtsam_similarity3.patch already applied."
+    elif git -C thirdparty/gtsam apply --unidiff-zero --check ../gtsam_similarity3.patch; then
+      git -C thirdparty/gtsam apply --unidiff-zero ../gtsam_similarity3.patch
+      echo "Applied thirdparty/gtsam_similarity3.patch."
+    else
+      echo "Failed to apply thirdparty/gtsam_similarity3.patch cleanly." >&2
+      exit 1
+    fi
+  else
+    echo "GTSAM install exists, skipping patch application."
+  fi
+  """,
+  """
+  cmake -B thirdparty/gtsam/build -S thirdparty/gtsam \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DGTSAM_SUPPORT_NESTED_DISSECTION=OFF \
+        -DGTSAM_USE_SYSTEM_EIGEN=ON \
+        -DGTSAM_WITH_TBB=ON \
+        -DGTSAM_BUILD_TESTS=OFF \
+        -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF \
+        -DGTSAM_BUILD_TIMING_ALWAYS=OFF \
+        -DGTSAM_BUILD_UNSTABLE=OFF \
+        -DGTSAM_LIBRARY_TYPE=SHARED \
+        -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
+        -DCMAKE_INSTALL_PREFIX=./thirdparty/gtsam/build/install \
+        -DCMAKE_INSTALL_MESSAGE=NEVER \
+        -GNinja
+  """,
+  "ninja -C thirdparty/gtsam/build",
+  "ninja -C thirdparty/gtsam/build install"
+]
+
+[clean_gtsam]
+description = "Remove build directory for GTSAM"
+hide = true
+run = ["rm -rf thirdparty/gtsam/build"]
+
+# --------------------------------------------------------------------------
+# Build and Clean rerun-sdk from source
+# --------------------------------------------------------------------------
+
+[build_rerun]
+description = "Install Rerun SDK from source"
+hide = true
+run = [
+ """
+  if [ ! -d "thirdparty/rerun_cpp_sdk" ]; then
+    wget -O thirdparty/rerun_cpp_sdk.zip \
+      https://github.com/rerun-io/rerun/releases/download/${RERUN_VERSION}/rerun_cpp_sdk.zip
+  fi
+
+  if [ -f "thirdparty/rerun_cpp_sdk.zip" ]; then
+    unzip -o thirdparty/rerun_cpp_sdk.zip -d thirdparty
+    rm -f thirdparty/rerun_cpp_sdk.zip
+  fi
+  """,
+  """
+  cmake -B thirdparty/rerun_cpp_sdk/build -S thirdparty/rerun_cpp_sdk \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=thirdparty/rerun_cpp_sdk/build/install \
+        -DCUDA_NVRTC_SHORTHASH=IGNORE \
+        -DBUILD_SHARED_LIBS=ON \
+        -DCMAKE_INSTALL_MESSAGE=NEVER \
+        -GNinja
+  """,
+  "ninja -C thirdparty/rerun_cpp_sdk/build rerun_sdk",
+  "ninja -C thirdparty/rerun_cpp_sdk/build install"
+]
+
+[clean_rerun]
+description = "Remove build directory for Rerun SDK"
+hide = true
+run = ["rm -rf thirdparty/rerun_cpp_sdk/build"]
+
+[remove_rerun]
+description = "Remove Rerun SDK source and build artifacts"
+hide = true
+run = ["rm -rf thirdparty/rerun_cpp_sdk"]
+
+# --------------------------------------------------------------------------
+# Build and Clean PoseLib from source
+# --------------------------------------------------------------------------
+
+[build_poselib]
+description = "Install PoseLib from source"
+hide = true
+run = [
+  """
+  cmake -B thirdparty/PoseLib/build -S thirdparty/PoseLib \
+        -DBUILD_SHARED_LIBS=ON \
+        -DWITH_BENCHMARK=OFF \
+        -DBUILD_TESTS=OFF \
+        -DPYTHON_PACKAGE=OFF \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=thirdparty/PoseLib/build/install \
+        -DCMAKE_INSTALL_MESSAGE=NEVER \
+        -GNinja
+  """,
+  "ninja -C thirdparty/PoseLib/build",
+  "ninja -C thirdparty/PoseLib/build install"
+]
+
+[clean_poselib]
+description = "Remove build directory for PoseLib"
+hide = true
+run = ["rm -rf thirdparty/PoseLib/build"]
+
+# --------------------------------------------------------------------------
+# Build and Clean Faiss from source
+# --------------------------------------------------------------------------
+
+[build_faiss]
+description = "Install Faiss from source"
+hide = true
+run = [
+  """
+  cmake -B thirdparty/faiss/build -S thirdparty/faiss \
+      -DBUILD_SHARED_LIBS=ON \
+      -DFAISS_ENABLE_GPU=ON \
+      -DFAISS_ENABLE_MKL=OFF \
+      -DBLA_VENDOR=OpenBLAS \
+      -DFAISS_OPT_LEVEL=avx2 \
+      -DCUDAToolkit_ROOT=/usr/local/cuda-${CUDA_VERSION} \
+      -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCH} \
+      -DBUILD_TESTING=OFF \
+      -DFAISS_ENABLE_PYTHON=OFF \
+      -DFAISS_ENABLE_C_API=OFF \
+      -DFAISS_ENABLE_EXTRAS=OFF \
+      -DFAISS_USE_LTO=OFF \
+      -DCMAKE_CUDA_COMPILER=/usr/local/cuda-${CUDA_VERSION}/bin/nvcc \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_INSTALL_PREFIX=thirdparty/faiss/build/install \
+      -DCMAKE_INSTALL_MESSAGE=NEVER \
+      -GNinja
+
+  """,
+  "ninja -C thirdparty/faiss/build",
+  "ninja -C thirdparty/faiss/build install",
+]
+
+[clean_faiss]
+description = "Remove build directory for Faiss"
+hide = true
+run = ["rm -rf thirdparty/faiss/build"]
+
+# --------------------------------------------------------------------------
+# Build and clean all third-party dependencies
+# --------------------------------------------------------------------------
+
+[build_thirdparties]
+description = "Build all third-party dependencies"
+run = [
+  "mise run build_gtsam",
+  "mise run build_rerun",
+  "mise run build_poselib",
+  "mise run build_faiss",
+]
+
+[prune_thirdparty_build_artifacts]
+description = "Keep only installed third-party artifacts after CI builds"
+hide = true
+run = [
+  """
+  for buildDir in \
+    thirdparty/gtsam/build \
+    thirdparty/rerun_cpp_sdk/build \
+    thirdparty/PoseLib/build \
+    thirdparty/faiss/build; do
+    if [ -d "${buildDir}/install" ]; then
+      find "${buildDir}" -mindepth 1 -maxdepth 1 ! -name install -exec rm -rf {} +
+    fi
+  done
+  """,
+]
+
+[build_thirdparties_ci]
+description = "Build third-party dependencies and prune intermediates for CI"
+run = [
+  "mise run build_gtsam",
+  "mise run prune_thirdparty_build_artifacts",
+  "mise run build_rerun",
+  "mise run prune_thirdparty_build_artifacts",
+  "mise run build_poselib",
+  "mise run prune_thirdparty_build_artifacts",
+  "mise run build_faiss",
+  "mise run prune_thirdparty_build_artifacts",
+]
+
+[clean_thirdparties]
+description = "Clean all third-party dependencies"
+run = [
+  "mise run clean_gtsam",
+  "mise run clean_rerun",
+  "mise run clean_poselib",
+  "mise run clean_faiss",
+]

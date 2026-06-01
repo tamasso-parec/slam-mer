@@ -1,0 +1,34 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+cff-version: 1.2.0
+message: If you use this software, please cite it using the preferred citation below.
+title: "SLAM-MER: Mitsubishi Electric Research framework for visual SLAM"
+type: software
+authors:
+  - family-names: Piedade
+    given-names: Valter
+  - family-names: Manam
+    given-names: Lalit
+  - family-names: Yamazaki
+    given-names: Masashi
+  - family-names: Miraldo
+    given-names: Pedro
+license: AGPL-3.0-or-later
+repository-code: "https://github.com/slam-mer/slam-mer"
+preferred-citation:
+  type: conference-paper
+  authors:
+    - family-names: Piedade
+      given-names: Valter
+    - family-names: Manam
+      given-names: Lalit
+    - family-names: Yamazaki
+      given-names: Masashi
+    - family-names: Miraldo
+      given-names: Pedro
+  title: "Revisiting Monocular SLAM with Spatio-Temporal Scene Modeling"
+  conference:
+    name: "Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)"
+  year: 2026

@@ -1,0 +1,156 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+set(SLAMMER_WITH_CUDA "@WITH_CUDA@")
+set(SLAMMER_WITH_ALIKED "@WITH_ALIKED@")
+set(SLAMMER_VISUAL_PLACE_LOCALIZATION "@VISUAL_PLACE_LOCALIZATION@")
+set(SLAMMER_DEPTH_INFERENCE "@DEPTH_INFERENCE@")
+set(ONNXRUNTIME_ROOTDIR "@ONNXRUNTIME_ROOTDIR@")
+
+
+set(_SLAMMER_EXPORT_TARGETS
+  SlamMer::cudaSift
+  SlamMer::types
+  SlamMer::logging
+  SlamMer::utils
+  SlamMer::image_processing
+  SlamMer::image_processing_interface
+  SlamMer::pose_estimation
+  SlamMer::registration
+  SlamMer::kl_divergence
+  SlamMer::representation
+  SlamMer::settings
+  SlamMer::localization
+  SlamMer::frame
+  SlamMer::map
+  SlamMer::covisibility_graph
+  SlamMer::loop_detection
+  SlamMer::sensor_data
+  SlamMer::slam
+  SlamMer::interface
+)
+
+# ---------------------------------------------------------------------------
+# Optional local third-party hints (for in-repo builds)
+if(NOT SLAMMER_THIRDPARTY_DIR)
+  get_filename_component(_SLAMMER_REPO_ROOT "${PACKAGE_PREFIX_DIR}/../.." ABSOLUTE)
+  set(SLAMMER_THIRDPARTY_DIR "${_SLAMMER_REPO_ROOT}/thirdparty")
+endif()
+
+set(_SLAMMER_GTSAM_HINTS)
+if(EXISTS "${SLAMMER_THIRDPARTY_DIR}/gtsam/build/install")
+  list(APPEND _SLAMMER_GTSAM_HINTS "${SLAMMER_THIRDPARTY_DIR}/gtsam/build/install")
+endif()
+
+set(_SLAMMER_POSELIB_HINTS)
+if(EXISTS "${SLAMMER_THIRDPARTY_DIR}/PoseLib/build/install")
+  list(APPEND _SLAMMER_POSELIB_HINTS "${SLAMMER_THIRDPARTY_DIR}/PoseLib/build/install")
+endif()
+
+set(_SLAMMER_FAISS_HINTS)
+if(EXISTS "${SLAMMER_THIRDPARTY_DIR}/faiss/build/install")
+  list(APPEND _SLAMMER_FAISS_HINTS "${SLAMMER_THIRDPARTY_DIR}/faiss/build/install")
+endif()
+
+set(_SLAMMER_RERUN_HINTS)
+if(EXISTS "${SLAMMER_THIRDPARTY_DIR}/rerun_cpp_sdk/build/install")
+  list(APPEND _SLAMMER_RERUN_HINTS "${SLAMMER_THIRDPARTY_DIR}/rerun_cpp_sdk/build/install")
+endif()
+
+set(_SLAMMER_TORCH_HINTS)
+if(EXISTS "${SLAMMER_THIRDPARTY_DIR}/libtorch")
+  list(APPEND _SLAMMER_TORCH_HINTS "${SLAMMER_THIRDPARTY_DIR}/libtorch")
+endif()
+
+set(_SLAMMER_VPL_HINTS)
+if(EXISTS "${SLAMMER_THIRDPARTY_DIR}/visual_place_localization/build/install")
+  list(APPEND _SLAMMER_VPL_HINTS "${SLAMMER_THIRDPARTY_DIR}/visual_place_localization/build/install")
+endif()
+
+set(_SLAMMER_DEPTH_INFERENCE_HINTS)
+if(EXISTS "${SLAMMER_THIRDPARTY_DIR}/depth_inference/build/install")
+  list(APPEND _SLAMMER_DEPTH_INFERENCE_HINTS "${SLAMMER_THIRDPARTY_DIR}/depth_inference/build/install")
+endif()
+
+find_dependency(Eigen3 REQUIRED)
+find_dependency(PNG REQUIRED)
+find_dependency(JPEG REQUIRED)
+find_dependency(GTSAM REQUIRED HINTS ${_SLAMMER_GTSAM_HINTS})
+find_dependency(PoseLib REQUIRED HINTS ${_SLAMMER_POSELIB_HINTS})
+find_dependency(Faiss REQUIRED HINTS ${_SLAMMER_FAISS_HINTS})
+find_dependency(OpenMP)
+find_dependency(yaml-cpp REQUIRED)
+find_dependency(rerun_sdk REQUIRED HINTS ${_SLAMMER_RERUN_HINTS})
+
+if(SLAMMER_WITH_CUDA)
+  find_dependency(CUDA REQUIRED)
+endif()
+
+if(SLAMMER_WITH_ALIKED)
+  # Torch CUDA detection can fail if the CUDA standard is too new (e.g., 23).
+  if(NOT DEFINED CMAKE_CUDA_STANDARD OR CMAKE_CUDA_STANDARD GREATER 20)
+    set(CMAKE_CUDA_STANDARD 17)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+  endif()
+  find_dependency(Torch REQUIRED HINTS ${_SLAMMER_TORCH_HINTS})
+endif()
+
+if(SLAMMER_VISUAL_PLACE_LOCALIZATION)
+  find_dependency(VisualPlaceLocalization REQUIRED HINTS ${_SLAMMER_VPL_HINTS})
+endif()
+
+if(SLAMMER_DEPTH_INFERENCE)
+  find_dependency(DepthInference REQUIRED HINTS ${_SLAMMER_DEPTH_INFERENCE_HINTS})
+endif()
+
+# ---------------------------------------------------------------------------
+# ONNX Runtime (header/library discovery for utils)
+if(ONNXRUNTIME_ROOTDIR)
+  find_path(ONNXRUNTIME_INCLUDE_DIR
+    NAMES onnxruntime_cxx_api.h
+    PATHS "${ONNXRUNTIME_ROOTDIR}/include"
+    NO_DEFAULT_PATH)
+  find_library(ONNXRUNTIME_LIBRARY
+    NAMES onnxruntime
+    PATHS "${ONNXRUNTIME_ROOTDIR}/lib"
+    NO_DEFAULT_PATH)
+endif()
+
+if(NOT ONNXRUNTIME_INCLUDE_DIR)
+  find_path(ONNXRUNTIME_INCLUDE_DIR NAMES onnxruntime_cxx_api.h)
+endif()
+if(NOT ONNXRUNTIME_LIBRARY)
+  find_library(ONNXRUNTIME_LIBRARY NAMES onnxruntime)
+endif()
+
+if(ONNXRUNTIME_LIBRARY AND NOT TARGET onnxruntime)
+  add_library(onnxruntime SHARED IMPORTED)
+  set_target_properties(onnxruntime PROPERTIES
+    IMPORTED_LOCATION "${ONNXRUNTIME_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${ONNXRUNTIME_INCLUDE_DIR}")
+endif()
+
+include(${CMAKE_CURRENT_LIST_DIR}/SlamMerTargets.cmake)
+
+if(SLAMMER_VISUAL_PLACE_LOCALIZATION)
+  foreach(_tgt IN LISTS _SLAMMER_EXPORT_TARGETS)
+    if(TARGET ${_tgt})
+      target_compile_definitions(${_tgt} INTERFACE VISUAL_PLACE_LOCALIZATION)
+    endif()
+  endforeach()
+endif()
+
+if(SLAMMER_DEPTH_INFERENCE)
+  foreach(_tgt IN LISTS _SLAMMER_EXPORT_TARGETS)
+    if(TARGET ${_tgt})
+      target_compile_definitions(${_tgt} INTERFACE DEPTH_INFERENCE)
+    endif()
+  endforeach()
+endif()
+
+check_required_components(SlamMer)

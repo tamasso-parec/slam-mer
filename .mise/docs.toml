@@ -1,0 +1,90 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# --------------------------------------------------------------------------
+# Tasks for development and documentation
+# --------------------------------------------------------------------------
+
+[build_docs]
+description = "build dxygen documents"
+run = [
+  "rm -rf doc/_build doc/api doc/doxygen/_docs",
+  "cd doc/doxygen || exit && doxygen Doxyfile.cfg",
+  "cd doc || exit && make html",
+  """
+  if [ -n "${DISPLAY}${WAYLAND_DISPLAY}" ]; then
+    xdg-open doc/_build/html/index.html >/dev/null 2>&1 || true
+  else
+    echo "Documentation built: doc/_build/html/index.html"
+  fi
+  """,
+]
+
+[build_docs_fast]
+description = "build docs without regenerating doxygen"
+run = [
+  "cd doc || exit && SLAM_MER_DOCS_FAST=1 make html",
+  """
+  if [ -n "${DISPLAY}${WAYLAND_DISPLAY}" ]; then
+    xdg-open doc/_build/html/index.html >/dev/null 2>&1 || true
+  else
+    echo "Documentation built: doc/_build/html/index.html"
+  fi
+  """,
+]
+
+[build_docs_ci]
+description = "Install documentation Python dependencies and build docs"
+run = [
+  "uv venv",
+  "uv pip install -r .github/workflows/requirements-docs.txt",
+  "mise run build_docs",
+]
+
+[update_docs_html]
+description = "Build and sync HTML docs to the gh-pages worktree (update only)"
+run = [
+  "mise run build_docs",
+  """
+  targetDir="${GH_PAGES_DIR:-../slam-mer-gh-pages}"
+  if [ ! -d "${targetDir}" ]; then
+    echo "Missing gh-pages worktree directory: ${targetDir}"
+    echo "Set GH_PAGES_DIR or create the worktree first."
+    exit 1
+  fi
+  rsync -avu --exclude '.git/' doc/_build/html/ "${targetDir}/"
+  """,
+]
+
+[install_docs_dependencies]
+description = "Install system dependencies for documentation"
+run = [
+  "sudo apt update",
+  """
+  sudo apt install -y
+    python3-sphinx
+    python3-sphinx-rtd-theme
+    doxygen
+    python3-exhale
+    python3-breathe
+  """,
+]
+
+[open_docs_cli]
+description = "open dxygen documents in CLI"
+run = "w3m doc/_build/html/index.html"
+
+[open_docs_gui]
+description = "open dxygen documents in GUI"
+run = """
+if [ -n "${DISPLAY}${WAYLAND_DISPLAY}" ]; then
+  xdg-open doc/_build/html/index.html >/dev/null 2>&1 || {
+    echo "Could not open a browser automatically."
+    echo "Open manually: doc/_build/html/index.html"
+  }
+else
+  echo "No GUI session detected."
+  echo "Open manually: doc/_build/html/index.html"
+fi
+"""

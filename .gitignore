@@ -1,0 +1,36 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+.DS_Store
+.ycm_extra_conf.py
+compile_commands.json
+.cache/
+build/
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+_deps
+
+
+.venv
+output/
+map_test.yaml
+/.serena/
+/doc/adr/
+/doc/research/
+/doc/api/
+/doc/_build/
+/doc/doxygen/_docs/
+/doc/__pycache__/
+uv.lock
+.python-version
+.VSCodeCounter/
+.VSCodeCounter/
+.codex
+.claude
+.agents/

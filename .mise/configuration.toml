@@ -1,0 +1,162 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# --------------------------------------------------------------------------
+# Dependencies
+# -------------------------------------------------------------------------
+
+[install_dependencies]
+description = "Install system dependencies"
+run = [
+  "wget -qO /tmp/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && sudo dpkg -i /tmp/cuda-keyring.deb && rm -f /tmp/cuda-keyring.deb",
+  "sudo apt-get update",
+  """
+  sudo apt-get install -y --no-install-recommends \
+    ninja-build \
+    g++-14 gcc-14 \
+    gcc-9 g++-9 \
+    git libssl-dev \
+    libboost-all-dev \
+    libgoogle-glog-dev \
+    cuda-toolkit-12-8 \
+    libgflags-dev \
+    libatlas-base-dev \
+    libopenblas-dev \
+    liblapack-dev \
+    libyaml-cpp-dev \
+    libeigen3-dev \
+    libtbb-dev \
+    libpng-dev \
+    libjpeg-turbo8-dev \
+    wget unzip
+  if apt-cache show libcudnn9-cuda-12 >/dev/null 2>&1; then
+    sudo apt-get install -y libcudnn9-cuda-12
+  elif apt-cache show cudnn9-cuda-12 >/dev/null 2>&1; then
+    sudo apt-get install -y cudnn9-cuda-12
+  fi
+  """,
+]
+
+# --------------------------------------------------------------------------
+# Pre-commit and static checks
+# -------------------------------------------------------------------------
+
+[setup_precommit]
+description = "Install pre-commit and register pre-commit/pre-push hooks"
+run = [
+  "uv sync --extra dev",
+  "uv run pre-commit install --install-hooks --hook-type pre-commit --hook-type pre-push",
+]
+
+[static_checks]
+description = "Run static code checks"
+run = [
+  "uv venv",
+  "uv pip install -r .github/workflows/requirements-dev.txt",
+  "uv run pre-commit run --all-files --show-diff-on-failure",
+]
+
+# --------------------------------------------------------------------------
+# Synchronize optional module submodule URLs
+# --------------------------------------------------------------------------
+
+[sync_optional_module_submodule_urls]
+description = "Set optional module submodule URLs for public/private repo variants"
+run = ["./scripts/sync_optional_modules.sh"]
+
+# --------------------------------------------------------------------------
+# Configure optional SLAM-MER modules
+# --------------------------------------------------------------------------
+
+[configure_depth_inference]
+description = "Configure the depth inference module environment"
+dir = "thirdparty/depth_inference"
+run = [
+  "mise trust",
+  "mise install",
+  "uv sync",
+]
+
+[configure_visual_place_localization]
+description = "Configure the visual place localization module environment"
+dir = "thirdparty/visual_place_localization"
+run = [
+  "mise trust",
+  "mise install",
+  "uv sync",
+]
+
+[configure_modules]
+description = "Configure all optional module environments"
+run = [
+  "mise run sync_optional_module_submodule_urls",
+  "mise run configure_depth_inference",
+  "mise run configure_visual_place_localization",
+]
+
+# --------------------------------------------------------------------------
+# Configure SLAM-MER main build
+# --------------------------------------------------------------------------
+
+[configure_debug]
+description = "Configure a Debug build for SLAM-MER"
+depends = ["ensure_libtorch"]
+run = [
+  """
+  cmake -B build -S . \
+        -DCMAKE_BUILD_TYPE=\"Debug\" \
+        -DLOG_TERMINAL:BOOL=OFF \
+        -DLOG_INTERFACE:BOOL=ON \
+        -DLOG_CUDA:BOOL=ON \
+        -DLOG_TIME:BOOL=ON \
+        -DLOG_LOCALIZATION:BOOL=ON \
+        -DLOG_POSE_ESTIMATION:BOOL=ON \
+        -DLOG_SETTINGS:BOOL=ON \
+        -DLOG_SLAM:BOOL=ON \
+        -DLOG_ADJUSTMENT:BOOL=ON \
+        -DDEPTH_INFERENCE:BOOL=ON \
+        -DVISUAL_PLACE_LOCALIZATION:BOOL=ON \
+        -DCMAKE_INSTALL_PREFIX=./build/install \
+        -GNinja
+  """,
+]
+
+[configure_main]
+description = "Configure a Release build for SLAM-MER"
+depends = ["ensure_libtorch"]
+run = [
+  """
+  cmake -B build -S . \
+        -DCMAKE_BUILD_TYPE=\"Release\" \
+        -DDEPTH_INFERENCE:BOOL=ON \
+        -DVISUAL_PLACE_LOCALIZATION:BOOL=ON \
+        -DCMAKE_INSTALL_PREFIX=./build/install \
+        -GNinja
+  """,
+]
+
+[configure_main_without_depth_vpl]
+description = "Configure SLAM-MER without depth inference or visual place localization"
+run = [
+  """
+  cmake -B build -S . \
+        -DCMAKE_BUILD_TYPE=\"${SLAM_MER_BUILD_TYPE:-Release}\" \
+        -DDEPTH_INFERENCE:BOOL=OFF \
+        -DVISUAL_PLACE_LOCALIZATION:BOOL=OFF \
+        -DWITH_ALIKED:BOOL=${SLAM_MER_WITH_ALIKED:-ON} \
+        -DCMAKE_INSTALL_PREFIX=./build/install \
+        -GNinja
+  """,
+]
+
+[configure_main_modules]
+description = "Configure main SLAM-MER and optional module environments"
+run = [
+  "mise run configure_modules",
+  "mise run configure_main",
+]
+
+[configure_project]
+description = "Run configuration tasks for main code and optional modules"
+run = ["mise run configure_main_modules"]
