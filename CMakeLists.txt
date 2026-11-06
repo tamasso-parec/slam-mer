@@ -33,7 +33,7 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 get_filename_component(SLAMMER_INSTALL_PREFIX_ABS "${CMAKE_INSTALL_PREFIX}" ABSOLUTE)
 set(CMAKE_INSTALL_RPATH
   "${SLAMMER_INSTALL_PREFIX_ABS}/lib"
-  "${CMAKE_SOURCE_DIR}/thirdparty/PoseLib/_install/lib"
+  "${CMAKE_SOURCE_DIR}/thirdparty/PoseLib/build/install/lib"
   "${CMAKE_SOURCE_DIR}/thirdparty/faiss/build/install/lib"
   "${CMAKE_SOURCE_DIR}/thirdparty/gtsam/build/install/lib"
   "${CMAKE_SOURCE_DIR}/thirdparty/rerun_cpp_sdk/build/install/lib"
@@ -49,6 +49,11 @@ endif()
 if(VISUAL_PLACE_LOCALIZATION)
   list(APPEND CMAKE_INSTALL_RPATH
     "${CMAKE_SOURCE_DIR}/thirdparty/visual_place_localization/build/install/lib")
+endif()
+
+if(DEPTH_INFERENCE)
+  list(APPEND CMAKE_INSTALL_RPATH
+    "${CMAKE_SOURCE_DIR}/thirdparty/depth_inference/build/install/lib")
 endif()
 
 list(REMOVE_DUPLICATES CMAKE_INSTALL_RPATH)

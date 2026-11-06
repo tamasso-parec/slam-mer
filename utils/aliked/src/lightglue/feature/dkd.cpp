@@ -23,7 +23,7 @@ namespace lightglue {
               unfold_(torch::nn::UnfoldOptions(kernel_size_).padding(radius)) {
 
             auto x = torch::linspace(-radius_, radius_, kernel_size_);
-            auto meshgrid = torch::meshgrid({x, x});
+            auto meshgrid = torch::meshgrid({x, x}, "ij");
             hw_grid_ = torch::stack({meshgrid[1], meshgrid[0]}, -1)
                            .reshape({-1, 2})
                            .contiguous(); // Ensure contiguous memory layout

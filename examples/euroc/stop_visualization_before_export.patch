@@ -1,0 +1,15 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+diff --git a/examples/common.cpp b/examples/common.cpp
+--- a/examples/common.cpp
++++ b/examples/common.cpp
+@@ -158 +158,4 @@
++  // Freeze visualization buffers before reading trajectory and point/color pairs.
++  interface::InterfaceRerun::get_instance().stop_interface();
++
+   const auto& keyframesPose = interface::get_keyframes_pose();
+@@ -178,3 +181 @@
+-  // Stop the interface threads
+-  interface::InterfaceRerun::get_instance().stop_interface();
+   // reset the SLAM

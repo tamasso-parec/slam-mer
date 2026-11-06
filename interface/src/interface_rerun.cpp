@@ -8,6 +8,7 @@
 /// @author Valter Piedade
 /// @author Masashi Yamazaki
 
+#include <cstdlib>
 #include <interface_rerun.hpp>
 #include <rerun.hpp>
 
@@ -40,6 +41,14 @@ void InterfaceRerun::initiate(
   using rerun::Pinhole;
   using rerun::ViewCoordinates;
 
+  // Columns express a visualization world's +X forward, +Y left, +Z up
+  // axes in the unchanged optical SLAM coordinates (right, down, forward).
+  // Rerun applies the inverse when this child frame is a view's origin.
+  const rerun::datatypes::Vec3D worldAxes[3] = {
+      {0.0F, 0.0F, 1.0F},
+      {-1.0F, 0.0F, 0.0F},
+      {0.0F, -1.0F, 0.0F}};
+
   // 1 - Check if the interface has already been initialized
   // 2 - Create the rerun recording stream
   // 3 - Set up the rerun logging parameters
@@ -50,7 +59,10 @@ void InterfaceRerun::initiate(
 
   __recording = std::make_shared<rerun::RecordingStream>("rerun_example_cpp");
 
-  if (serverAddress_.empty()) {
+  const char* recordingPath = std::getenv("SLAM_MER_RERUN_PATH");
+  if (recordingPath != nullptr && recordingPath[0] != '\0') {
+    __recording->save(recordingPath).exit_on_failure();
+  } else if (serverAddress_.empty()) {
     __recording->spawn().exit_on_failure();
   } else {
     const Error error = __recording->connect_grpc(serverAddress_);
@@ -62,21 +74,29 @@ void InterfaceRerun::initiate(
   }
 
 #ifdef DEBUG
-  __recording->log("world", ViewCoordinates::RIGHT_HAND_Z_UP);
+  // SLAM coordinates follow the initial optical camera frame: x right,
+  // y down, z forward. This metadata controls viewing, not SLAM geometry.
+  __recording->log_static("world", ViewCoordinates::RDF);
+  __recording->log_static(
+      "world/visualization",
+      rerun::Transform3D::from_mat3x3(worldAxes).with_axis_length(0.5F),
+      ViewCoordinates::FLU);
   __recording->log(
       "world/root/camera",
-      Pinhole::from_focal_length_and_resolution(
-          {500.0, 500.0},
-          {640.0, 480.0}));
+      Pinhole::from_focal_length_and_resolution({500.0, 500.0}, {640.0, 480.0})
+          .with_camera_xyz(rerun::components::ViewCoordinates::RDF));
 #endif
 
 #ifdef SHOW_DENSE
-  __recording->log_static("scene", ViewCoordinates::RIGHT_HAND_Z_UP);
+  __recording->log_static("scene", ViewCoordinates::RDF);
+  __recording->log_static(
+      "scene/world",
+      rerun::Transform3D::from_mat3x3(worldAxes).with_axis_length(0.5F),
+      ViewCoordinates::FLU);
   __recording->log(
       "scene/camera",
-      Pinhole::from_focal_length_and_resolution(
-          {500.0, 500.0},
-          {640.0, 480.0}));
+      Pinhole::from_focal_length_and_resolution({500.0, 500.0}, {640.0, 480.0})
+          .with_camera_xyz(rerun::components::ViewCoordinates::RDF));
 #endif
 
   AbstractInterface::initiate(

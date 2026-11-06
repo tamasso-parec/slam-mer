@@ -18,6 +18,7 @@ _deps
 
 
 .venv
+__pycache__/
 output/
 map_test.yaml
 /.serena/

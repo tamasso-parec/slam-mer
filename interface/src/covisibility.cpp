@@ -94,8 +94,9 @@ void __covisibility_contains(const keyframe_id_t::pair& connection_);
 void __covisibility_insert(const keyframe_id_t::pair& connection_);
 /// @brief Check whether a keyframe is already present in trajectory buffers.
 /// @param id_ Keyframe identifier.
+/// @param warn_ Report an unexpected missing keyframe.
 /// @return `true` when the keyframe exists in local interface state.
-bool __sanity_exists(const keyframe_id_t& id_);
+bool __sanity_exists(const keyframe_id_t& id_, bool warn_ = true);
 /// @brief Validate that a pose query succeeded for a keyframe.
 /// @param pose_ Pose query output.
 /// @param id_ Keyframe identifier associated with `pose_`.
@@ -183,7 +184,7 @@ void log_poses() {
   keyframe_id_t::vector inserted;
   for (const keyframe_id_t& keyframeId : insert) {
 
-    if (__sanity_exists(keyframeId)) continue;
+    if (__sanity_exists(keyframeId, false)) continue;
     const output_t<pose_t> poseOutput = ___get_keyframe(keyframeId);
     if (!__sanity_pose(poseOutput, keyframeId)) continue;
 
@@ -286,14 +287,15 @@ void __covisibility_insert(const keyframe_id_t::pair& connection_) {
 /// @brief Check whether a keyframe is already present in trajectory buffers.
 /// @param id_ Keyframe identifier.
 /// @return `true` when the keyframe exists in local interface state.
-bool __sanity_exists(const keyframe_id_t& id_) {
+bool __sanity_exists(const keyframe_id_t& id_, bool warn_) {
   using std::println;
   if (!__cameraTrajectoryIdToIndex.contains(id_)) {
-    println(
-        "[Rerun Interface] {}Warning{}: Keyframe id: {} not found.",
-        yellow,
-        reset,
-        std::string(id_));
+    if (warn_)
+      println(
+          "[Rerun Interface] {}Warning{}: Keyframe id: {} not found.",
+          yellow,
+          reset,
+          std::string(id_));
     return false;
   }
   return true;

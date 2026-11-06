@@ -1,0 +1,22 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+**/.git
+**/.venv
+**/build
+**/_build
+**/_deps
+**/__pycache__
+**/.cache
+**/mise.local.toml
+.agents
+.aws
+.codex
+.claude
+output
+thirdparty/libtorch
+thirdparty/rerun_cpp_sdk
+thirdparty/*.zip
+thirdparty/*/thirdparty/onnxruntime-*
+thirdparty/*/assets/*onnx_model*
+thirdparty/*/assets/visual_place_recognition/*onnx_model*

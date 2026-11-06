@@ -16,8 +16,7 @@ message(STATUS "slam-mer: CUDASIFT_INCLUDE_DIRS=${CUDASIFT_INCLUDE_DIRS}")
 # ---------------------------------------------------------------------------
 # Build ALIKED from utils/aliked when enabled
 if(WITH_ALIKED)
-  # Keep the same CUDA host compiler setting used previously for ALIKED.
-  set(CMAKE_CUDA_HOST_COMPILER /usr/bin/gcc-9)
+  # Respect CMAKE_CUDA_HOST_COMPILER / CUDAHOSTCXX selected by the caller.
   set(LIBTORCH_DIR "${CMAKE_SOURCE_DIR}/thirdparty/libtorch")
   list(PREPEND CMAKE_PREFIX_PATH "${LIBTORCH_DIR}")
   find_package(Torch REQUIRED)

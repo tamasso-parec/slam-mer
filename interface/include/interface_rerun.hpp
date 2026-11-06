@@ -43,6 +43,8 @@ public:
   /// @param queryCameraLogFrequency_ Camera/diagnostic logging frequency in Hz.
   /// @param serverAddress_ Optional gRPC address. If empty, launches a local
   /// Rerun viewer process.
+  /// @details SLAM_MER_RERUN_PATH selects an output recording file instead of
+  /// starting a viewer or connecting to a server.
   void initiate(
       PointersVisualization pointers_,
       const double queryMapLogFrequency_ = 10.0,

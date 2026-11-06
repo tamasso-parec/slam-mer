@@ -15,19 +15,62 @@
 #endif
 
 // Third-party libraries
+#include <png.h>
 #include <rerun.hpp>
 
 // Standard library
+#include <cstdlib>
+#include <optional>
+#include <vector>
 #ifdef DEBUG
 #include <algorithm>
 #include <array>
-#include <vector>
 #endif
 
 namespace slam_mer {
 namespace interface {
 
 namespace {
+
+/// @brief Encode an RGB image losslessly for a bounded-size recording.
+/// @param image_ Tightly packed U8 RGB pixels.
+/// @return PNG bytes, or no value if the input cannot be encoded.
+std::optional<std::vector<uint8_t>> encode_png(const image_t& image_) {
+  if (image_.type() != image_t::Type::U8 || image_.channels() != 3)
+    return std::nullopt;
+  png_image png{};
+  png.version = PNG_IMAGE_VERSION;
+  png.width = static_cast<png_uint_32>(image_.cols());
+  png.height = static_cast<png_uint_32>(image_.rows());
+  png.format = PNG_FORMAT_RGB;
+  png_alloc_size_t size = 0;
+  if (!png_image_write_to_memory(
+          &png,
+          nullptr,
+          &size,
+          0,
+          image_.data(),
+          0,
+          nullptr)) {
+    png_image_free(&png);
+    return std::nullopt;
+  }
+  std::vector<uint8_t> bytes(size);
+  if (!png_image_write_to_memory(
+          &png,
+          bytes.data(),
+          &size,
+          0,
+          image_.data(),
+          0,
+          nullptr)) {
+    png_image_free(&png);
+    return std::nullopt;
+  }
+  png_image_free(&png);
+  bytes.resize(size);
+  return bytes;
+}
 
 #ifdef DEBUG
 /// @brief Overlay color for the image-coverage grid.
@@ -94,10 +137,14 @@ std::vector<rerun::Position2D> ___to_rerun_positions(
 std::shared_mutex __image_mutex;
 /// Source image to be logged
 image_t __sourceImage;
+/// Source pixels have changed since the last logging call.
+bool __sourceImageDirty = false;
 /// Source depth image to be logged
 image_t __sourceDepth;
+bool __sourceDepthDirty = false;
 /// Debug image to be logged
 image_t __debugImage;
+bool __debugImageDirty = false;
 /// @brief Cached image resolution used by image logging.
 struct ImageSize {
   /// Image width in pixels.
@@ -234,6 +281,7 @@ void log_source_image(const utils::ImageDebugData& data) {
   }
   write_lock_t lock(__image_mutex);
   __sourceImage = image_;
+  __sourceImageDirty = true;
 }
 
 /// @brief Cache the latest source depth image for backend logging.
@@ -252,6 +300,7 @@ void log_source_depth_image(const utils::ImageDebugData& data) {
   }
   write_lock_t lock(__image_mutex);
   __sourceDepth = image_.clone();
+  __sourceDepthDirty = true;
 }
 
 /// @brief Cache the latest debug image and per-frame counters.
@@ -273,6 +322,7 @@ void log_debug_image(const utils::ImageDebugData& data) {
 
 #ifdef DEBUG
   __debugImage = data._grayscaleImage;
+  __debugImageDirty = true;
   __inliers = data._inliers;
   __allFeatures = data._allFeatures;
   __fps = data._fps;
@@ -297,20 +347,30 @@ void InterfaceRerun::__log_images() {
   // 3 - Log the source depth image
   // 4 - Log the debug image
 
-  read_lock_t lock(__image_mutex);
+  write_lock_t lock(__image_mutex);
 
 #ifdef SHOW_DENSE
-  if (!__sourceImage.empty()) {
-    __recording->log(
-        "scene/camera/image",
-        Image::from_rgb24(
-            borrow(
-                __sourceImage.data(),
-                __sourceImage.total() * __sourceImage.elem_size()),
-            {__imageSize._width, __imageSize._height}));
+  if (__sourceImageDirty && !__sourceImage.empty()) {
+    std::optional<std::vector<uint8_t>> encoded;
+    if (std::getenv("SLAM_MER_RERUN_PATH") != nullptr)
+      encoded = encode_png(__sourceImage);
+    if (encoded) {
+      __recording->log(
+          "scene/camera/image",
+          rerun::EncodedImage::from_bytes(std::move(*encoded)));
+    } else {
+      __recording->log(
+          "scene/camera/image",
+          Image::from_rgb24(
+              borrow(
+                  __sourceImage.data(),
+                  __sourceImage.total() * __sourceImage.elem_size()),
+              {__imageSize._width, __imageSize._height}));
+    }
+    __sourceImageDirty = false;
   }
 
-  if (!__sourceDepth.empty()) {
+  if (__sourceDepthDirty && !__sourceDepth.empty()) {
     // Convert F32 depth to U8 for Rerun visualization
     // TUM depth values are in range 0-65535, so scale to 0-255
     const size_t n = __sourceDepth.total();
@@ -335,10 +395,11 @@ void InterfaceRerun::__log_images() {
         Image::from_grayscale8(
             borrow(depthU8.data(), depthU8.total() * depthU8.elem_size()),
             {__imageSize._width, __imageSize._height}));
+    __sourceDepthDirty = false;
   }
 #endif
 #if defined(DEBUG) || defined(SHOW_DENSE)
-  if (!__debugImage.empty()) {
+  if (__debugImageDirty && !__debugImage.empty()) {
     const size_t n = __debugImage.total() * __debugImage.channels();
     image_t debugImageDark(
         __debugImage.rows(),
@@ -367,6 +428,7 @@ void InterfaceRerun::__log_images() {
                 debugImageDark.data(),
                 debugImageDark.total() * debugImageDark.elem_size()),
             {__imageSize._width, __imageSize._height}));
+    __debugImageDirty = false;
   }
 #endif
 }

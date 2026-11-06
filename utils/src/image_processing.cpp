@@ -23,6 +23,10 @@
 
 // Standard library includes
 #include <cfloat>
+#include <cstdlib>
+#include <limits>
+#include <optional>
+#include <stdexcept>
 
 #ifdef WITH_CUDA
 #include <cudaSift.h>
@@ -53,6 +57,19 @@ public:
     if (_initialized && _dim == dimension_ && _device == cudaDeviceId_)
       return this;
 
+    std::optional<size_t> tempMemoryBytes;
+    if (const char* value = std::getenv("SLAM_MER_FAISS_TEMP_MEMORY_MB")) {
+      const std::string memoryMb(value);
+      if (memoryMb.empty() ||
+          memoryMb.find_first_not_of("0123456789") != std::string::npos)
+        throw std::invalid_argument(
+            "SLAM_MER_FAISS_TEMP_MEMORY_MB must be a nonnegative integer");
+      const auto megabytes = std::stoull(memoryMb);
+      if (megabytes > std::numeric_limits<size_t>::max() / (1024 * 1024))
+        throw std::out_of_range("SLAM_MER_FAISS_TEMP_MEMORY_MB is too large");
+      tempMemoryBytes = static_cast<size_t>(megabytes) * 1024 * 1024;
+    }
+
     for (int i = 0; i < _resource_num; ++i)
       _gpu_indices[i].reset();
 
@@ -60,6 +77,7 @@ public:
       if (!_gpu_resources[i]) {
         _gpu_resources[i] =
             std::make_unique<faiss::gpu::StandardGpuResources>();
+        if (tempMemoryBytes) _gpu_resources[i]->setTempMemory(*tempMemoryBytes);
       }
       if (!_gpu_indices[i]) {
         faiss::gpu::GpuIndexFlatConfig config;

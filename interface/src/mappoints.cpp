@@ -16,6 +16,8 @@
 #include <rerun.hpp>
 
 // Standard libraries
+#include <chrono>
+#include <cstdlib>
 
 namespace slam_mer {
 namespace interface {
@@ -131,11 +133,19 @@ void AbstractInterface::log_points() {
   const point_id_t::vector insert = __newPoints->to_vector();
   point_id_t::vector inserted;
   for (const point_id_t& pointId : insert) {
-    if (__is_unset(pointId)) continue;
-    if (__contains(pointId)) continue;
+    if (__is_unset(pointId) || !__not_contains(pointId)) {
+      inserted.push_back(pointId);
+      continue;
+    }
 
     output_t<point3d_t> point = ___get_point(pointId);
     if (point.fail()) {
+      // Points are published only after map insertion. A missing ID here
+      // was culled before visualization caught up and must not be retried.
+      if (point.get_error() == fail_t::NOT_FOUND) {
+        inserted.push_back(pointId);
+        continue;
+      }
       __retrieval_error(point.get_error());
       continue;
     }
@@ -166,6 +176,10 @@ void AbstractInterface::log_points() {
     if (__not_contains(pointId)) continue;
     updated.push_back(pointId);
     output_t<point3d_t> point = ___get_point(pointId);
+    if (point.fail() && point.get_error() == fail_t::NOT_FOUND) {
+      __hidePoint->insert_(pointId);
+      continue;
+    }
     if (__update_query_fail(point, pointId)) {
       __pendingUpdate.insert(pointId);
       continue;
@@ -184,6 +198,11 @@ void AbstractInterface::log_points() {
   for (const point_id_t& pointID : __pendingUpdate) {
     if (__not_contains(pointID)) continue;
     output_t<point3d_t> point = ___get_point(pointID);
+    if (point.fail() && point.get_error() == fail_t::NOT_FOUND) {
+      __hidePoint->insert_(pointID);
+      pulledOut.push_back(pointID);
+      continue;
+    }
     if (__update_query_fail(point, pointID)) continue;
     __update_point(pointID, point);
     __update_neighbors_point(pointID, point);
@@ -235,8 +254,37 @@ void InterfaceRerun::__log_points() {
 void InterfaceRerun::__log_dense_point_cloud() {
   using rerun::Points3D;
 
+  // A recording retains every snapshot. Bound its map history rather than
+  // serializing the complete growing map at the interactive refresh rate.
+  const bool recording = std::getenv("SLAM_MER_RERUN_PATH") != nullptr;
+  static auto lastRecorded = std::chrono::steady_clock::time_point{};
+  const auto now = std::chrono::steady_clock::now();
+  if (recording && now - lastRecorded < std::chrono::seconds(1)) return;
+
   read_lock_t lock(__pointCloudDense_mutex);
   if (__pointsDense.empty()) return;
+
+  if (recording) {
+    constexpr size_t maxPoints = 50000;
+    const size_t stride = (__pointsDense.size() + maxPoints - 1) / maxPoints;
+    std::vector<std::array<float, 3>> points;
+    std::vector<uint32_t> colors;
+    std::vector<float> radii;
+    points.reserve(maxPoints);
+    colors.reserve(maxPoints);
+    radii.reserve(maxPoints);
+    for (size_t i = 0; i < __pointsDense.size(); i += stride) {
+      if (__radiiDense[i] <= 0) continue;
+      points.push_back(__pointsDense[i]);
+      colors.push_back(__colorsDense[i]);
+      radii.push_back(__radiiDense[i]);
+    }
+    __recording->log(
+        "scene/point_cloud",
+        Points3D(points).with_colors(colors).with_radii(radii));
+    lastRecorded = now;
+    return;
+  }
 
   __recording->log(
       "scene/point_cloud",
