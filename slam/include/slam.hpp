@@ -28,6 +28,10 @@
 
 namespace slam_mer {
 
+namespace covisibility_graph {
+class GaussianPosterior;
+}
+
 /// @brief Main entry point for running the SLAM pipeline.
 class Slam {
 
@@ -90,6 +94,11 @@ public:
   void get_image_visualization_data(
       data_type::SensorData::shared_ptr data_,
       utils::ImageDebugData& outputData_);
+
+  /// @brief Latest owned backend posterior, or null before the first update.
+  /// @return Snapshot with matching estimates; readable during later updates.
+  std::shared_ptr<const covisibility_graph::GaussianPosterior> get_posterior()
+      const;
 
   /// @brief Get the current slam fps.
   /// @return Frames per second.

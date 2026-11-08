@@ -7,6 +7,8 @@ message(STATUS "slam-mer: build adjustment module")
 # this module will contain the mapping adjustment and covisibility graph
 add_library(covisibility_graph SHARED
   src/covisibility_graph.cpp
+  src/gaussian_posterior.cpp
+  src/sim3_factor_derivatives.cpp
   src/factors_noise_model.cpp
 )
 
@@ -20,7 +22,6 @@ target_link_libraries(covisibility_graph
     types
     map
     descriptor_model
-  PRIVATE
     gtsam
 )
 

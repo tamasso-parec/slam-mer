@@ -1,0 +1,23 @@
+# Copyright (C) 2026 Mitsubishi Electric Research Laboratories (MERL)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+Slam:
+  Mode: SLAM_WITHOUT_LOOP
+Map:
+  Covisibility:
+    UseSimilarity: true
+    ModuleFps: 100
+Localization:
+  Frame:
+    MaxDepth: 10.0
+  PointsQuery:
+    TemporalBufferSize: 100
+  PoseEstimation:
+    InlierRatioThreshold: 0.2
+  KeyframeCreation:
+    GridCols: 4
+    MinimumCellsCovered: 5
+    KLDivergenceThreshold: 3.0
+  Relocalization:
+    QueryTopK: 10
+Loop:
+  QueryTopK: 20

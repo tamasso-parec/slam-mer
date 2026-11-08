@@ -14,6 +14,7 @@
 // slam-mer includes
 #include <covisibility_factors.hpp>
 #include <descriptor_model.hpp>
+#include <gaussian_posterior.hpp>
 #include <map.hpp>
 #include <observation_edge.hpp>
 #include <odometry_edge.hpp>
@@ -50,6 +51,12 @@ public:
     CovisibilityGraph::shared_ptr graph(new CovisibilityGraph(std::move(map_)));
     graph->__start_thread();
     return graph;
+  }
+
+  /// @brief Latest coherent backend values and Gaussian; null before first update.
+  /// @return Owned snapshot, readable during the next optimizer update.
+  GaussianPosterior::shared_ptr posterior() const {
+    return _posterior.latest();
   }
 
   /// CovisibilityGraph object destructor.
@@ -320,6 +327,9 @@ private:
   /// to be updated to the map before. It uses a timeout mechanism to
   /// avoid keeping points that will never be updated.
   void __process_pending_points();
+
+  /// Owned publication slot; only the optimization thread writes it.
+  PosteriorPublication _posterior;
 
   /// Pointer to the map created in the slam system
   map::Map::shared_ptr _map;

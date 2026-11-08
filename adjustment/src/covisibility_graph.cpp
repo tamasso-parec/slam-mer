@@ -337,7 +337,7 @@ private:
     using gtsam::ISAM2Result;
     using gtsam::Key;
     using gtsam::NonlinearFactorGraph;
-    using gtsam::PriorFactor;
+    using PriorFactor = PosePriorFactor<TransformationType>;
     using gtsam::SharedNoiseModel;
     using gtsam::Symbol;
     using gtsam::Values;
@@ -371,10 +371,7 @@ private:
         continue;
 
       const auto strongFactor =
-          std::make_shared<PriorFactor<TransformationType>>(
-              key,
-              pose,
-              fixedPoseNoise);
+          std::make_shared<PriorFactor>(key, pose, fixedPoseNoise);
 
       newFactors.add(strongFactor);
       ++numClampsAdded;
@@ -1492,13 +1489,13 @@ template <typename TransformationType>
 void CovisibilityGraph<TransformationType>::__add_prior_factor(
     const keyframe_id_t keyframeId_,
     const TransformationType& pose_) {
-  using gtsam::PriorFactor;
+  using PriorFactor = PosePriorFactor<TransformationType>;
   using gtsam::Symbol;
   using gtsam::noiseModel::Diagonal;
 
   Diagonal::shared_ptr noise = get_prior_pose_noise_model<TransformationType>();
   const Symbol symbol = Symbol('k', keyframeId_.key());
-  PriorFactor<TransformationType> priorFactor(symbol, pose_, noise);
+  PriorFactor priorFactor(symbol, pose_, noise);
   __graph->add(priorFactor);
 }
 
@@ -1532,6 +1529,7 @@ void CovisibilityGraph<TransformationType>::__optimize(std::stop_token token_) {
   parameters.relinearizeThreshold = relinearize;
   parameters.relinearizeSkip = skip;
   ISAM2 isam = ISAM2(parameters);
+  uint64_t posteriorRevision = 0;
 
   while (token_.stop_requested() == false) {
     timer.tic();
@@ -1554,7 +1552,13 @@ void CovisibilityGraph<TransformationType>::__optimize(std::stop_token token_) {
       }
       if (isamUpdated) {
         const auto values = std::make_shared<Values>(isam.calculateEstimate());
-        __map_update(values);
+        // Extraction is report-only and outside the ingestion lock. A numeric
+        // failure publishes unavailable for this revision without undoing estimates.
+        _posterior.publish_after_update(
+            isam,
+            *values,
+            ++posteriorRevision,
+            [&] { __map_update(values); });
       }
     }
     timer.pace(duration_t::from_fps(minimumFramesPerSecond));

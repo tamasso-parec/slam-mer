@@ -11,8 +11,11 @@
 #ifndef COVISIBILITY_FACTORS_HPP
 #define COVISIBILITY_FACTORS_HPP
 
+#include <sim3_factor_derivatives.hpp>
 #include <types/id.hpp>
 #include <types/output.hpp>
+
+#include <type_traits>
 
 // Necessary GTSAM headers for SLAM
 #include <gtsam/geometry/Point3.h>
@@ -21,6 +24,7 @@
 #include <gtsam/linear/NoiseModel.h>
 #include <gtsam/nonlinear/NonlinearFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
+#include <gtsam/slam/PriorFactor.h>
 // #include <gtsam/slam/ProjectionFactor.h>
 #include <gtsam/base/OptionalJacobian.h>
 #include <gtsam/base/numericalDerivative.h>
@@ -47,6 +51,7 @@ class PointDistanceFactor
 public:
   /// Typedef for the base gtsam class
   using Base = gtsam::NoiseModelFactor3<TransformationType, gtsam::Point3>;
+  using Base::evaluateError;
   /// Typedef for the base gtsam class
   using PointDistanceFactorTyped = PointDistanceFactor<TransformationType>;
 
@@ -141,6 +146,10 @@ public:
       gtsam::OptionalMatrixType H1_,
       gtsam::OptionalMatrixType H2_) const override {
 
+    if constexpr (std::is_same_v<TransformationType, gtsam::Similarity3>) {
+      return sim3_camera_point(pose_, point_, H1_, H2_) - this->_measured;
+    }
+
     gtsam::Matrix H_point_cam_wrt_Tinv;
     gtsam::Matrix H_point_cam_wrt_point;
 
@@ -175,6 +184,7 @@ class ProjectionFactor
 public:
   /// Typedef for the base gtsam class
   using Base = gtsam::NoiseModelFactor2<TransformationType, gtsam::Point3>;
+  using Base::evaluateError;
 
   /// Typed alias for the ProjectionFactor class template
   using ProjectionFactorTyped = ProjectionFactor<TransformationType>;
@@ -308,11 +318,17 @@ public:
     Matrix Dpc_dpoint;
     Point3 pc;
 
-    if constexpr (requires(
-                      const TransformationType& P,
-                      const Point3& X,
-                      Matrix* A,
-                      Matrix* B) { P.transformTo(X, A, B); }) {
+    if constexpr (std::is_same_v<TransformationType, gtsam::Similarity3>) {
+      pc = sim3_camera_point(
+          pose_,
+          point_,
+          H1_ ? &Dpc_dpose : nullptr,
+          H2_ ? &Dpc_dpoint : nullptr);
+    } else if constexpr (requires(
+                             const TransformationType& P,
+                             const Point3& X,
+                             Matrix* A,
+                             Matrix* B) { P.transformTo(X, A, B); }) {
       pc = pose_.transformTo(
           point_,
           H1_ ? &Dpc_dpose : nullptr,
@@ -359,6 +375,8 @@ template <typename TransformationType>
 class OdometryFactor : public gtsam::BetweenFactor<TransformationType> {
 
 public:
+  using Base = gtsam::BetweenFactor<TransformationType>;
+  using Base::evaluateError;
   /// Typedef for a std::shared_ptr of an OdometryFactor
   using shared_ptr = std::shared_ptr<OdometryFactor<TransformationType>>;
 
@@ -401,6 +419,66 @@ public:
             gtsam::Symbol('k', keyframeId2_.key()),
             odometry_,
             noiseModel_) {}
+
+  /// @brief Preserve the residual and correct the Sim(3) chart derivatives.
+  /// @details Includes the Local derivative at nonzero residual. Pose3 keeps
+  /// the pinned GTSAM behavior. Sim(3) uses analytic chart derivatives.
+  gtsam::Vector evaluateError(
+      const TransformationType& first_,
+      const TransformationType& second_,
+      gtsam::OptionalMatrixType H1_,
+      gtsam::OptionalMatrixType H2_) const override {
+    if constexpr (std::is_same_v<TransformationType, gtsam::Similarity3>) {
+      const auto relative = first_.between(second_);
+      const auto error = this->measured().between(relative);
+      gtsam::Matrix local;
+      const auto residual = sim3_logmap(error, (H1_ || H2_) ? &local : nullptr);
+      if (H1_) *H1_ = -local * sim3_adjoint(relative.inverse());
+      if (H2_) *H2_ = local;
+      return residual;
+    } else {
+      return Base::evaluateError(first_, second_, H1_, H2_);
+    }
+  }
+
+  /// @brief Clone without slicing away the corrected derivatives.
+  gtsam::NonlinearFactor::shared_ptr clone() const override {
+    return std::make_shared<OdometryFactorTyped>(*this);
+  }
+};
+
+/// @brief Pose prior preserving GTSAM residuals with consistent Sim(3) derivatives.
+/// @details Pose3 keeps the native Jacobian. Sim(3) differentiates the native
+/// prior residual in its actual retraction rather than assuming identity away
+/// from the prior origin. Noise models and mean semantics remain native.
+template <typename TransformationType>
+class PosePriorFactor : public gtsam::PriorFactor<TransformationType> {
+public:
+  using Base = gtsam::PriorFactor<TransformationType>;
+  using Base::Base;
+  using Base::evaluateError;
+
+  /// @brief Evaluate the native prior residual and optional local Jacobian.
+  gtsam::Vector evaluateError(
+      const TransformationType& pose_,
+      gtsam::OptionalMatrixType H_) const override {
+    if constexpr (std::is_same_v<TransformationType, gtsam::Similarity3>) {
+      if (H_) {
+        const auto error = pose_.between(this->prior());
+        gtsam::Matrix local;
+        sim3_logmap(error, &local);
+        *H_ = local * sim3_adjoint(error.inverse());
+      }
+      return Base::evaluateError(pose_, nullptr);
+    } else {
+      return Base::evaluateError(pose_, H_);
+    }
+  }
+
+  /// @brief Clone without replacing the corrected prior by its native base.
+  gtsam::NonlinearFactor::shared_ptr clone() const override {
+    return std::make_shared<PosePriorFactor>(*this);
+  }
 };
 
 /// @brief Check whether retrieving a point-distance factor failed.

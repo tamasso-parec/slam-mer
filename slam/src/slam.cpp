@@ -83,6 +83,16 @@ std::variant<
 
 }  // namespace
 
+std::shared_ptr<const covisibility_graph::GaussianPosterior>
+Slam::get_posterior() const {
+  return std::visit(
+      [](const auto& graph_)
+          -> covisibility_graph::GaussianPosterior::shared_ptr {
+        return graph_ ? graph_->posterior() : nullptr;
+      },
+      __covisibilityGraph);
+}
+
 // ---------------------------------------------------------------------------
 // Construct SLAM system and initialize all runtime modules
 // ---------------------------------------------------------------------------
